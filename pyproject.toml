@@ -28,3 +28,6 @@ attr = "car_price_prediction.__version__"
 [tool.setuptools.packages.find]
 where = [ "src",]
 namespaces = false
+
+[tool.kedro_telemetry]
+project_id = "589934f3f6e247e89da1e24f6d5b01a3"

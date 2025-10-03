@@ -1,0 +1,3 @@
+cars:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/cars.csv

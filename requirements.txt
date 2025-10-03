@@ -1,4 +1,11 @@
 ipython>=8.10
 jupyterlab>=3.0
+jupyter
+jupyter-core
 notebook
 kedro~=1.0.0
+kedro-datasets
+pyarrow
+fastparquet
+openpyxl
+pandas
