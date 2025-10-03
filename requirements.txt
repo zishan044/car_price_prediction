@@ -9,3 +9,5 @@ pyarrow
 fastparquet
 openpyxl
 pandas
+matplotlib
+seaborn
