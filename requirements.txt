@@ -11,3 +11,5 @@ openpyxl
 pandas
 matplotlib
 seaborn
+rapidfuzz
+numpy
