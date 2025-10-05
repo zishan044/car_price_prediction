@@ -13,3 +13,4 @@ matplotlib
 seaborn
 rapidfuzz
 numpy
+scikit-learn
