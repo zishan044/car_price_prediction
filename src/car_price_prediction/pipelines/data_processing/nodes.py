@@ -14,7 +14,7 @@ horse_power_pattern = r'(\d+\.?\d*)\s*HP'
 import pandas as pd
 
 def _null_percentage(x: pd.Series) -> float:
-        return int(x.isna().sum() / len(x))
+        return np.round(x.isna().mean(), 2)
 
 def _impute_fuel_type(fuel_col: pd.Series, eng_class_col: pd.Series) -> pd.Series:
 
@@ -231,28 +231,19 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     num_cols = [col for col in df.columns if df[col].dtype != 'object']
     cat_cols = [col for col in df.columns if df[col].dtype == 'object']
 
-    impute_median_cols = [col for col in num_cols if _null_percentage(df[col]) < 0.05]
-    impute_knn_cols = [col for col in num_cols if _null_percentage(df[col]) > 0.05]
-
-    median_pipe = Pipeline([
+    num_pipe = Pipeline([
         ('imputer', SimpleImputer(strategy='median')),
         ('scaler', StandardScaler())
     ])
 
-    knn_pipe = Pipeline([
-        ('imputer', KNNImputer(n_neighbors=5)),
-        ('scaler', StandardScaler())
-    ])
-
-    onehot_pipe = Pipeline([
+    cat_pipe = Pipeline([
         ('imputer', SimpleImputer(strategy='most_frequent')),
         ('encoder', OneHotEncoder(handle_unknown='ignore'))
     ])
 
     preprocessor = ColumnTransformer([
-        ('num_median', median_pipe, impute_median_cols),
-        ('num_knn', knn_pipe, impute_knn_cols),
-        ('cat', onehot_pipe, cat_cols),
+        ('num', num_pipe, num_cols),
+        ('cat', cat_pipe, cat_cols),
     ])
 
     transformed = preprocessor.fit_transform(df)
