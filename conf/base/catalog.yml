@@ -5,3 +5,7 @@ cars:
 feature_data:
   type: pandas.ParquetDataset
   filepath: data/02_primary/feature_data.pq
+
+gradient_boosting_regressor:
+  type: pickle.PickleDataset
+  filepath: data/06_models/gradient_boosting_regressor.pkl

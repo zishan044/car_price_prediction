@@ -1,0 +1,15 @@
+active_modeling_pipeline:
+  model_options:
+    test_size: 0.2
+    random_state: 44
+    features:
+      - num__milage
+      - num__model_year
+      - num__eng_hp
+      - num__premium_score
+      - num__col_enc
+      - num__eng_volume
+      - num__clean_title
+      - num__trans_mordernity
+      - cat__eng_class_Basic
+      - cat__trans_tech_High_Gear_Automatic
