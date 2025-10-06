@@ -2,14 +2,44 @@ import re
 import numpy as np
 import pandas as pd
 
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
+
 num_sylinders_pattern = r'(?:Flat\s+(\d+)|V(\d+)|(\d+)\s+Cylinder|I(\d+))'
 vol_cylinders_pattern = r'(\d+\.?\d*)\s*L'
 horse_power_pattern = r'(\d+\.?\d*)\s*HP'
 
-def _get_premium_score(df: pd.DataFrame, n_bins: int = 100) -> pd.Series:
+import pandas as pd
+
+def _null_percentage(x: pd.Series) -> float:
+        return int(x.isna().sum() / len(x))
+
+def _impute_fuel_type(fuel_col: pd.Series, eng_class_col: pd.Series) -> pd.Series:
+
+    fuel = fuel_col.copy()
+    
+    electric_mask = eng_class_col.str.contains('Electric|Hybrid', na=False)
+    fuel.loc[electric_mask] = 'Electric'
+
+    remaining_na = fuel.isna()
+    if remaining_na.any():
+        non_electric_non_na = (~electric_mask) & (fuel.notna())
+        most_frequent_fuel = fuel.loc[non_electric_non_na].mode()
+
+        if not most_frequent_fuel.empty:
+            fuel.loc[remaining_na] = most_frequent_fuel[0]
+        else:
+            fuel.loc[remaining_na] = 'Gasoline'
+    
+    return fuel
+
+
+def _get_premium_score(df: pd.DataFrame, n_bins: int = 10000) -> pd.Series:
     avg_price = df.groupby(['brand', 'model'])['price'].mean()
 
-    bins = np.linspace(avg_price.min(), avg_price.max(), n_bins)
+    bins = np.linspace(avg_price.min() - 1, avg_price.max() + 1, n_bins)
     scores = pd.cut(avg_price, bins=bins, labels=False)
 
     score_map = scores.to_dict()
@@ -184,11 +214,47 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
 
     df['eng_class'] = df['engine'].apply(_classify_engine)
 
+    df['fuel_type'] = _impute_fuel_type(df['fuel_type'], df['eng_class'])
+
     df['trans_tech'] = df['transmission'].apply(_extract_transmission_tech)
     df['trans_gear_count_category'] = df['transmission'].apply(_gear_count_category)
     df['trans_mordernity'] = df['transmission'].apply(_transmission_modernity)
 
-    columns_to_drop = ['id', 'brand', 'model', 'engine', 'transmission']
+    df['col_enc'] = df.groupby(['int_col', 'ext_col'])['price'].transform('mean')
+
+    columns_to_drop = ['id', 'brand', 'model', 'engine', 'transmission', 'int_col', 'ext_col']
     df.drop(columns=columns_to_drop, inplace=True)
 
     return df
+
+def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
+    num_cols = [col for col in df.columns if df[col].dtype != 'object']
+    cat_cols = [col for col in df.columns if df[col].dtype == 'object']
+
+    impute_median_cols = [col for col in num_cols if _null_percentage(df[col]) < 0.05]
+    impute_knn_cols = [col for col in num_cols if _null_percentage(df[col]) > 0.05]
+
+    median_pipe = Pipeline([
+        ('imputer', SimpleImputer(strategy='median')),
+        ('scaler', StandardScaler())
+    ])
+
+    knn_pipe = Pipeline([
+        ('imputer', KNNImputer(n_neighbors=5)),
+        ('scaler', StandardScaler())
+    ])
+
+    onehot_pipe = Pipeline([
+        ('imputer', SimpleImputer(strategy='most_frequent')),
+        ('encoder', OneHotEncoder(handle_unknown='ignore'))
+    ])
+
+    preprocessor = ColumnTransformer([
+        ('num_median', median_pipe, impute_median_cols),
+        ('num_knn', knn_pipe, impute_knn_cols),
+        ('cat', onehot_pipe, cat_cols),
+    ])
+
+    transformed = preprocessor.fit_transform(df)
+    features_names = preprocessor.get_feature_names_out()
+    return pd.DataFrame(transformed, columns=features_names, index=df.index)
